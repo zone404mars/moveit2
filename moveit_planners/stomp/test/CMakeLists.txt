@@ -6,3 +6,7 @@ target_link_libraries(test_noise_generator stomp::stomp rsl::rsl)
 ament_add_gtest(test_cost_functions test_cost_functions.cpp)
 ament_target_dependencies(test_cost_functions moveit_core)
 target_link_libraries(test_cost_functions stomp::stomp rsl::rsl)
+
+ament_add_gtest(test_filter_functions test_filter_functions.cpp)
+ament_target_dependencies(test_filter_functions moveit_core)
+target_link_libraries(test_filter_functions stomp::stomp rsl::rsl moveit_core::moveit_test_utils)

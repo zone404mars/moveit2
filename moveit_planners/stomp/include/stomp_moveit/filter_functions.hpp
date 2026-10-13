@@ -80,21 +80,25 @@ FilterFn simpleSmoothingMatrix(size_t num_timesteps)
 /**
  * Creates a filter function that clips all waypoint positions using the joint bounds of a given JointModelGroup.
  *
+ * The filter receives the current waypoint positions as 'values' and the parameter updates as 'filtered_values'.
+ * The bounds are enforced on the resulting positions (values + updates), and the updates are adjusted accordingly.
+ *
  * @param group The JointModelGroup providing the joint limits
  * @return The filter function for enforcing joint limits
  */
 FilterFn enforcePositionBounds(const moveit::core::JointModelGroup* group)
 {
   return [=](const Eigen::MatrixXd& values, Eigen::MatrixXd& filtered_values) {
-    filtered_values = values;
+    Eigen::MatrixXd positions = values + filtered_values;
     const auto& joints = group->getActiveJointModels();
     for (size_t i = 0; i < joints.size(); ++i)
     {
-      for (int j = 0; j < filtered_values.cols(); ++j)
+      for (int j = 0; j < positions.cols(); ++j)
       {
-        joints.at(i)->enforcePositionBounds(&filtered_values.coeffRef(i, j));
+        joints.at(i)->enforcePositionBounds(&positions.coeffRef(i, j));
       }
     }
+    filtered_values = positions - values;
     return true;
   };
 }
@@ -108,11 +112,10 @@ FilterFn enforcePositionBounds(const moveit::core::JointModelGroup* group)
 FilterFn chain(const std::vector<FilterFn>& filter_functions)
 {
   return [=](const Eigen::MatrixXd& values, Eigen::MatrixXd& filtered_values) {
-    Eigen::MatrixXd values_in = values;
+    // Each filter receives the unchanged waypoint positions and refines the updates in place
     for (const auto& filter_fn : filter_functions)
     {
-      filter_fn(values_in, filtered_values);
-      values_in = filtered_values;
+      filter_fn(values, filtered_values);
     }
     return true;
   };
